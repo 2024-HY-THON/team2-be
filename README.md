@@ -1,5 +1,5 @@
-# backend
-하이톤 2팀 백엔드입니다
+# team2-be
+하이톤 2팀 백엔드입니다.
 
 # Commit Rules
 
@@ -38,3 +38,5 @@
 - **hotfix branch**  
   - 형식: `hotfix-...`  
     - 예: `hotfix-1.2.1`
+
+from [YeonDeok](https://github.com/YeonDeok)
