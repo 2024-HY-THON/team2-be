@@ -1,0 +1,62 @@
+services:
+  db:
+    container_name: mariadb
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -p$$MARIADB_ROOT_PASSWORD | grep 'mysqld is alive' || exit 1"]
+      interval: 1s
+      timeout: 3s
+      retries: 60
+      start_period: 2s
+    image: mariadb:latest
+    expose:
+      - "3306"
+    volumes:
+      - ./db/conf.d:/etc/mysql/conf.d
+      - ./db/data:/var/lib/mysql
+      - ./db/initdb.d:/docker-entrypoint-initdb.d
+    environment:
+      - MARIADB_DATABASE=db
+      - MARIADB_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - TZ=Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --character-set-client-handshake=FALSE
+      - --collation-server=utf8mb4_bin
+    restart: always
+    networks:
+      default_bridge:
+        ipv4_address: 172.27.0.2
+
+  backend:
+    depends_on:
+      db:
+        condition: service_healthy
+    image: node:22
+    container_name: node_app
+    working_dir: /usr/src/app
+    ports:
+      #- 80:80
+      #- 443:443
+      - 3005:3005
+    command: "npm start"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=${MARIADB_ROOT_PASSWORD}
+      - DB_NAME=db
+      - TZ=Asia/Seoul
+    volumes:
+      - ./harulog:/usr/src/app
+      - /etc/letsencrypt:/app/letsencrypt
+    restart: always
+    networks:
+      default_bridge:
+        ipv4_address: 172.27.0.3
+
+networks:
+  default_bridge:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.27.0.0/16
