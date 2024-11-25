@@ -4,7 +4,7 @@
   "settings": {
     "width": 2000,
     "height": 2000,
-    "scrollTop": -9,
+    "scrollTop": 0,
     "scrollLeft": 0,
     "zoomLevel": 1,
     "show": 431,
@@ -56,8 +56,8 @@
           "UrqsrHMH0A3D0FBvssGPM",
           "pVi45qOJb8QqGK_AyI1yt",
           "LiHAOrJcL06ex4P-Wtj59",
-          "rYRvMoBjx4jsvoNUn4maT",
           "M_S8jZT_9fA2U4SGwRQur",
+          "rYRvMoBjx4jsvoNUn4maT",
           "GmmFOomZndWpQHuT7xIyB"
         ],
         "seqColumnIds": [
@@ -72,8 +72,8 @@
           "LiHAOrJcL06ex4P-Wtj59",
           "N0rnLIvVvcurwd3efJS01",
           "lXzO-BQ92dP0DwNDTDzcb",
-          "rYRvMoBjx4jsvoNUn4maT",
           "M_S8jZT_9fA2U4SGwRQur",
+          "rYRvMoBjx4jsvoNUn4maT",
           "AblATA4SVi1H6G1ip7Kta",
           "GmmFOomZndWpQHuT7xIyB"
         ],
@@ -86,7 +86,7 @@
           "color": ""
         },
         "meta": {
-          "updateAt": 1732533415768,
+          "updateAt": 1732533462767,
           "createAt": 1732526632465
         }
       },
@@ -353,20 +353,20 @@
       "rYRvMoBjx4jsvoNUn4maT": {
         "id": "rYRvMoBjx4jsvoNUn4maT",
         "tableId": "BnYSZ5xEVuXat9Fgl9tND",
-        "name": "AI_text_data",
+        "name": "AI_content",
         "comment": "AI생성 텍스트",
         "dataType": "TEXT",
         "default": "",
         "options": 0,
         "ui": {
           "keys": 0,
-          "widthName": 73,
+          "widthName": 63,
           "widthComment": 69,
           "widthDataType": 60,
           "widthDefault": 60
         },
         "meta": {
-          "updateAt": 1732527671381,
+          "updateAt": 1732533459366,
           "createAt": 1732527359996
         }
       },
@@ -888,7 +888,7 @@
       1732527359995,
       -1,
       {
-        "name": 1732527371269,
+        "name": 1732533459366,
         "dataType": 1732527402814,
         "default": 1732527641161,
         "comment": 1732527671381
