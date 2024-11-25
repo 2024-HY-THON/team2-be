@@ -1,0 +1,13 @@
+{
+  "name": "harulog",
+  "version": "1.0.0",
+  "description": "A simple Node.js application for Docker setup",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.1",
+    "mariadb": "^3.4.0"
+  }
+}
