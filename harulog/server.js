@@ -3,6 +3,10 @@ const mariadb = require("mariadb");
 const bcrypt = require("bcryptjs");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
+const OpenAI = require("openai");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const app = express();
 app.use(express.json());
@@ -79,12 +83,6 @@ async function defineSchema() {
   } finally {
     if (conn) conn.release();
   }
-}
-
-async function init() {
-  validateEnv();
-  await checkConnection();
-  await defineSchema();
 }
 
 app.get("/", (req, res) => {
@@ -470,6 +468,85 @@ app.put("/diaries/:id", async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /chat:
+ *   post:
+ *     summary: 사용자 입력에 기반한 GPT-4 모델 응답 생성
+ *     description: 사용자가 입력한 텍스트를 GPT-4 모델에 전달하여 생성된 응답을 반환합니다.
+ *     tags:
+ *       - Chat
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               text:
+ *                 type: string
+ *                 description: GPT-4 모델에 전달할 사용자 입력 텍스트
+ *                 example: "재귀 함수에 대한 하이쿠를 작성해 주세요."
+ *     responses:
+ *       200:
+ *         description: GPT-4에서 생성된 응답
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: GPT-4에서 반환된 응답 메시지
+ *                   example: "코드 속의 순환,\n스스로를 호출하네,\n무한의 아름다움."
+ *       400:
+ *         description: 잘못된 요청
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 에러 메시지
+ *                   example: "Text parameter is required."
+ *       500:
+ *         description: 내부 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 에러 메시지
+ *                   example: "An error occurred while processing your request."
+ */
+app.post("/chat", async (req, res) => {
+  const { text } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ error: "Text parameter is required." });
+  }
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "한국어로 대답하고, input에 대한 최적의 output을 내줘" },
+        { role: "user", content: text },
+      ],
+    });
+    console.log(`text: ${text}`);
+    console.log(completion);
+
+    res.status(200).json({ message: completion.choices[0].message.content });
+  } catch (error) {
+    console.error("Error occurred:", error);
+    res.status(500).json({ error: "An error occurred while processing your request." });
+  }
+});
+
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
@@ -477,5 +554,11 @@ app.listen(port, () => {
   console.log(`Server running on http://localhost:${port}`);
   console.log(`Swagger docs available at http://localhost:${port}/api-docs`);
 });
+
+async function init() {
+  validateEnv();
+  await checkConnection();
+  await defineSchema();
+}
 
 init();

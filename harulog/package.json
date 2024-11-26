@@ -9,7 +9,8 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.21.1",
-    "mariadb": "^3.4.0"
+    "mariadb": "^3.4.0",
+    "openai": "^4.73.0"
   },
   "devDependencies": {
     "swagger-jsdoc": "^6.2.8",
