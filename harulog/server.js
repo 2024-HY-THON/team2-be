@@ -470,12 +470,10 @@ app.put("/diaries/:id", async (req, res) => {
 
 /**
  * @swagger
- * /chat:
+ * /diaries/adaptation:
  *   post:
- *     summary: 사용자 입력에 기반한 GPT-4 모델 응답 생성
- *     description: 사용자가 입력한 텍스트를 GPT-4 모델에 전달하여 생성된 응답을 반환합니다.
- *     tags:
- *       - Chat
+ *     summary: 일기 내용을 GPT API로 각색
+ *     description: 일기의 내용을 GPT 모델에 전달하여 각색 후 반환합니다.
  *     requestBody:
  *       required: true
  *       content:
@@ -485,11 +483,11 @@ app.put("/diaries/:id", async (req, res) => {
  *             properties:
  *               text:
  *                 type: string
- *                 description: GPT-4 모델에 전달할 사용자 입력 텍스트
- *                 example: "재귀 함수에 대한 하이쿠를 작성해 주세요."
+ *                 description: GPT 모델에 전달할 일기 내용
+ *                 example: "오늘은 치킨을 먹었다"
  *     responses:
  *       200:
- *         description: GPT-4에서 생성된 응답
+ *         description: GPT에서 생성된 응답
  *         content:
  *           application/json:
  *             schema:
@@ -497,8 +495,8 @@ app.put("/diaries/:id", async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   description: GPT-4에서 반환된 응답 메시지
- *                   example: "코드 속의 순환,\n스스로를 호출하네,\n무한의 아름다움."
+ *                   description: GPT에서 반환된 응답 메시지
+ *                   example: "오늘은 마법 같은 날이었다. 퇴근길에 기분이 좋아진 나는 길가의 치킨집에서 고소한 향기가 코를 강타했다. 입맛을 다시며 한 발자국 다가섰다. 그곳은 도톰한 닭다리와 바삭한 튀김옷으로 유명한 '치킨의 성전'이었다.\n\n주문한 치킨이 나오기까지의 기다림은 마치 대기 중인 드라마의 클라이맥스처럼 심장 뛰게 했다. \"후라이드, 양념, 간장? 어떤 걸 고를까?\" 고민하다가 결국 나의 선택은 간장을 선택했다. 매콤하면서도 달콤한 양념이 마음에 쏙 들었다.\n\n치킨이 상에 나왔을 때, 그 모습은 저 멀리에서 나를 부르는듯했다! 금빛으로 반짝이는 튀김옷, 그리고 양념이 얹힌 그 모습은 마치 미소를 지은 것처럼 보였다. 첫 조각을 입에 넣는 순간, 바삭한 소리가 내 귀를 간질였다. 그리고 그 맛은... 아, 마치 세상의 모든 행복이 담긴 단 한 입이었다.\n\n그렇게 치킨은 나의 하루를 완벽하게 만들어주었다. 친구들과 함께 나누어 먹으며 웃고 떠드는 동안, 그 행복한 순간이 늘 기억되길 바라는 나는 속으로 다짐했다. '치킨과 나의 우정, 영원하리라!'"
  *       400:
  *         description: 잘못된 요청
  *         content:
@@ -522,7 +520,7 @@ app.put("/diaries/:id", async (req, res) => {
  *                   description: 에러 메시지
  *                   example: "An error occurred while processing your request."
  */
-app.post("/chat", async (req, res) => {
+app.post("/diaries/adaptation", async (req, res) => {
   const { text } = req.body;
 
   if (!text) {
@@ -533,7 +531,7 @@ app.post("/chat", async (req, res) => {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: "한국어로 대답하고, input에 대한 최적의 output을 내줘" },
+        { role: "system", content: "input으로는 누군가가 쓴 일기가 들어올 거야. 재미있게 각색해줘" },
         { role: "user", content: text },
       ],
     });
