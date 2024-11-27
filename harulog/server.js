@@ -70,6 +70,7 @@ async function defineSchema() {
         id INT AUTO_INCREMENT PRIMARY KEY comment 'id',
         image_data TEXT comment 'base64 이미지 데이터',
         content TEXT NOT NULL comment '내용',
+        adapted_content TEXT comment '각색된 내용',
         username VARCHAR(50) NOT NULL comment '닉네임',
         hashed_password CHAR(64) NOT NULL comment '비밀번호의 SHA-256 해시',
         salt CHAR(32) NOT NULL comment '비밀번호 해싱용 salt',
@@ -117,6 +118,10 @@ app.get("/", (req, res) => {
  *                     type: string
  *                     description: 다이어리 내용
  *                     example: "오늘은 아주 멋진 날이었다!"
+ *                   adapted_content:
+ *                     type: string
+ *                     description: 각색된 다이어리 내용
+ *                     example: "오늘은 태양이 반짝이며 하늘을 밝히고, 바람은 마치 내 귓가에 속삭이는 듯 상쾌하게 불어왔다. 일어나자마자 창문을 열고 깊게 숨을 쉬었더니, 온갖 기분 좋은 향기들이 내 마음속에 한가득 쌓였다."
  *                   username:
  *                     type: string
  *                     description: 작성자 이름
@@ -131,7 +136,8 @@ app.get("/diaries", async (req, res) => {
   let conn;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT id, image_data, content, username, created_at FROM diary");
+    const rows = await conn.query("SELECT id, image_data, content, adapted_content, username, created_at FROM diary");
+    console.log(rows);
     res.json(rows);
   } catch (err) {
     console.error("Error fetching diaries:", err);
@@ -208,6 +214,7 @@ app.post("/diaries", async (req, res) => {
 
     conn = await pool.getConnection();
     const result = await conn.query("INSERT INTO diary (image_data, content, username, hashed_password, salt) VALUES (?, ?, ?, ?, ?)", [image_data, content, username, hashedPassword, salt]);
+    console.log(`Diary entry created with ID: ${result.insertId}`);
     res.status(201).json({ message: "Diary entry created", id: Number(result.insertId) });
   } catch (err) {
     console.error("Error creating diary entry:", err);
@@ -309,7 +316,8 @@ app.delete("/diaries/:id", async (req, res) => {
 
     // 1. 삭제하려는 항목의 hashed_password와 salt 조회
     const rows = await conn.query("SELECT hashed_password FROM diary WHERE id = ?", [id]);
-    if (rows.length === 0) {
+
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ message: "Diary entry not found" });
     }
 
@@ -318,15 +326,17 @@ app.delete("/diaries/:id", async (req, res) => {
     // 2. 비밀번호 검증
     const passwordMatch = await bcrypt.compare(password, hashed_password);
     if (!passwordMatch) {
+      console.log("Invalid password");
       return res.status(401).json({ message: "Invalid password" });
     }
 
     // 3. 비밀번호 검증 성공 시 삭제
     const result = await conn.query("DELETE FROM diary WHERE id = ?", [id]);
     if (result.affectedRows === 0) {
+      console.log("Diary entry not found");
       return res.status(404).json({ message: "Diary entry not found" });
     }
-
+    console.log(`Diary ID: ${id} successfully deleted.`);
     res.status(200).json({ message: "Diary entry deleted" });
   } catch (err) {
     console.error("Error deleting diary entry:", err);
@@ -365,6 +375,10 @@ app.delete("/diaries/:id", async (req, res) => {
  *                 type: string
  *                 description: 업데이트할 다이어리 내용
  *                 example: "오늘은 멋진 날이었어요."
+ *               adapted_content:
+ *                 type: string
+ *                 description: 각색된 다이어리 내용
+ *                 example: "오늘은 태양이 반짝이며 하늘을 밝히고, 바람은 마치 내 귓가에 속삭이는 듯 상쾌하게 불어왔다. 일어나자마자 창문을 열고 깊게 숨을 쉬었더니, 온갖 기분 좋은 향기들이 내 마음속에 한가득 쌓였다."
  *               username:
  *                 type: string
  *                 description: 업데이트할 작성자 이름
@@ -432,7 +446,7 @@ app.delete("/diaries/:id", async (req, res) => {
  */
 app.put("/diaries/:id", async (req, res) => {
   const { id } = req.params;
-  const { image_data, content, username, password } = req.body;
+  const { image_data, content, adapted_content, username, password } = req.body;
   let conn;
 
   try {
@@ -440,7 +454,8 @@ app.put("/diaries/:id", async (req, res) => {
 
     // 1. 수정하려는 항목의 hashed_password 조회
     const rows = await conn.query("SELECT hashed_password FROM diary WHERE id = ?", [id]);
-    if (rows.length === 0) {
+
+    if (!rows || rows.length === 0) {
       return res.status(404).json({ message: "Diary entry not found" });
     }
 
@@ -449,15 +464,26 @@ app.put("/diaries/:id", async (req, res) => {
     // 2. 비밀번호 검증
     const passwordMatch = await bcrypt.compare(password, hashed_password);
     if (!passwordMatch) {
+      console.log("Invalid password");
       return res.status(401).json({ message: "Invalid password" });
     }
 
     // 3. 비밀번호 검증 성공 시 데이터 업데이트
-    const result = await conn.query("UPDATE diary SET image_data = ?, content = ?, username = ? WHERE id = ?", [image_data, content, username, id]);
+    const result = await conn.query(
+      `UPDATE diary SET 
+      image_data = COALESCE(?, image_data),
+      content = COALESCE(?, content),
+      adapted_content = COALESCE(?, adapted_content),
+      username = COALESCE(?, username)
+      WHERE id = ?`,
+      [image_data, content, adapted_content, username, id]
+    );
 
     if (result.affectedRows === 0) {
+      console.error("Diary entry not found");
       res.status(404).json({ message: "Diary entry not found" });
     } else {
+      console.log(`Diary ID: ${id} successfully updated.`);
       res.status(200).json({ message: "Diary entry updated" });
     }
   } catch (err) {
@@ -472,22 +498,31 @@ app.put("/diaries/:id", async (req, res) => {
  * @swagger
  * /diaries/adaptation:
  *   post:
- *     summary: 일기 내용을 GPT API로 각색
- *     description: 일기의 내용을 GPT 모델에 전달하여 각색 후 반환합니다.
+ *     summary: AI를 사용하여 일기 내용을 각색
+ *     description: 사용자의 비밀번호를 검증한 뒤, 해당 일기의 adapted_content가 null인 경우 AI를 사용하여 각색된 내용을 생성하고 저장합니다. 이미 각색된 내용이 존재하면 아무 작업도 수행하지 않습니다.
+ *     tags:
+ *       - Diaries
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - id
+ *               - password
  *             properties:
- *               text:
+ *               id:
+ *                 type: integer
+ *                 description: 각색하려는 일기의 고유 ID
+ *                 example: 1
+ *               password:
  *                 type: string
- *                 description: GPT 모델에 전달할 일기 내용
- *                 example: "오늘은 치킨을 먹었다"
+ *                 description: 사용자의 비밀번호
+ *                 example: "mypassword123"
  *     responses:
  *       200:
- *         description: GPT에서 생성된 응답
+ *         description: 요청이 성공적으로 처리되었으며, 각색된 내용이 생성되었거나 이미 존재함.
  *         content:
  *           application/json:
  *             schema:
@@ -495,10 +530,12 @@ app.put("/diaries/:id", async (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *                   description: GPT에서 반환된 응답 메시지
- *                   example: "오늘은 마법 같은 날이었다. 퇴근길에 기분이 좋아진 나는 길가의 치킨집에서 고소한 향기가 코를 강타했다. 입맛을 다시며 한 발자국 다가섰다. 그곳은 도톰한 닭다리와 바삭한 튀김옷으로 유명한 '치킨의 성전'이었다.\n\n주문한 치킨이 나오기까지의 기다림은 마치 대기 중인 드라마의 클라이맥스처럼 심장 뛰게 했다. \"후라이드, 양념, 간장? 어떤 걸 고를까?\" 고민하다가 결국 나의 선택은 간장을 선택했다. 매콤하면서도 달콤한 양념이 마음에 쏙 들었다.\n\n치킨이 상에 나왔을 때, 그 모습은 저 멀리에서 나를 부르는듯했다! 금빛으로 반짝이는 튀김옷, 그리고 양념이 얹힌 그 모습은 마치 미소를 지은 것처럼 보였다. 첫 조각을 입에 넣는 순간, 바삭한 소리가 내 귀를 간질였다. 그리고 그 맛은... 아, 마치 세상의 모든 행복이 담긴 단 한 입이었다.\n\n그렇게 치킨은 나의 하루를 완벽하게 만들어주었다. 친구들과 함께 나누어 먹으며 웃고 떠드는 동안, 그 행복한 순간이 늘 기억되길 바라는 나는 속으로 다짐했다. '치킨과 나의 우정, 영원하리라!'"
+ *                   description: 작업 결과 메시지
+ *                 adapted_content:
+ *                   type: string
+ *                   description: 새로 생성된 각색된 내용 (이미 존재하는 경우 포함되지 않음)
  *       400:
- *         description: 잘못된 요청
+ *         description: 요청 본문이 잘못되었거나 필수 필드가 누락됨.
  *         content:
  *           application/json:
  *             schema:
@@ -506,10 +543,29 @@ app.put("/diaries/:id", async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   description: 에러 메시지
- *                   example: "Text parameter is required."
+ *                   description: 오류 메시지
+ *       401:
+ *         description: 비밀번호 검증 실패.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 오류 메시지
+ *       404:
+ *         description: 해당 ID의 일기를 찾을 수 없음.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 오류 메시지
  *       500:
- *         description: 내부 서버 오류
+ *         description: 내부 서버 오류.
  *         content:
  *           application/json:
  *             schema:
@@ -517,31 +573,65 @@ app.put("/diaries/:id", async (req, res) => {
  *               properties:
  *                 error:
  *                   type: string
- *                   description: 에러 메시지
- *                   example: "An error occurred while processing your request."
+ *                   description: 오류 메시지
  */
 app.post("/diaries/adaptation", async (req, res) => {
-  const { text } = req.body;
+  const { id, password } = req.body;
 
-  if (!text) {
-    return res.status(400).json({ error: "Text parameter is required." });
+  if (!id || !password) {
+    return res.status(400).json({ error: "ID and password are required." });
   }
+  let conn;
 
   try {
+    conn = await pool.getConnection();
+
+    // 1. Diary 항목 조회 및 검증
+    const rows = await conn.query("SELECT hashed_password, content, adapted_content FROM diary WHERE id = ?", [id]);
+
+    if (!rows || rows.length === 0) {
+      console.error("Diary entry not found.");
+      return res.status(404).json({ error: "Diary entry not found." });
+    }
+
+    const { hashed_password, content, adapted_content } = rows[0];
+
+    // 2. 비밀번호 검증
+    const passwordMatch = await bcrypt.compare(password, hashed_password);
+    if (!passwordMatch) {
+      console.error("Invalid password.");
+      return res.status(401).json({ error: "Invalid password." });
+    }
+
+    // 3. adapted_content가 null이 아니면 무시
+    if (adapted_content !== null) {
+      console.log("Adapted content already exists. No action taken.");
+      return res.status(200).json({ message: "Adapted content already exists. No action taken." });
+    }
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: "input으로는 누군가가 쓴 일기가 들어올 거야. 재미있게 각색해줘" },
-        { role: "user", content: text },
+        { role: "user", content: content },
       ],
     });
-    console.log(`text: ${text}`);
-    console.log(completion);
+    const adaptedText = completion.choices[0].message.content;
 
-    res.status(200).json({ message: completion.choices[0].message.content });
+    // 5. adapted_content 컬럼에 저장
+    const result = await conn.query("UPDATE diary SET adapted_content = ? WHERE id = ?", [adaptedText, id]);
+
+    if (result.affectedRows === 0) {
+      console.error("Failed to update adapted content.");
+      return res.status(500).json({ error: "Failed to update adapted content." });
+    }
+    console.log(`Diary ID: ${id} successfully updated with adapted content.`);
+    res.status(200).json({ message: "Adapted content created and saved successfully.", adapted_content: adaptedText });
   } catch (error) {
     console.error("Error occurred:", error);
     res.status(500).json({ error: "An error occurred while processing your request." });
+  } finally {
+    if (conn) conn.release();
   }
 });
 
