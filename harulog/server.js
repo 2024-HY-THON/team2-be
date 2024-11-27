@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const mariadb = require("mariadb");
 const bcrypt = require("bcryptjs");
 const swaggerUi = require("swagger-ui-express");
@@ -9,6 +10,13 @@ const openai = new OpenAI({
 });
 
 const app = express();
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true,
+  })
+);
 app.use(express.json());
 const port = process.env.PORT;
 
@@ -524,18 +532,18 @@ app.put("/diaries/:id", async (req, res) => {
  * @swagger
  * /diaries/{id}/likes:
  *   patch:
- *     summary: 다이어리 좋아요 수 증가
- *     description: 특정 다이어리의 좋아요(likes) 필드를 1 증가시킵니다.
+ *     summary: 다이어리 추천수 증가
+ *     description: 특정 다이어리의 추천(likes) 필드를 1 증가시킵니다.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
- *         description: 좋아요 수를 증가시킬 다이어리의 고유 ID
+ *         description: 추천수를 증가시킬 다이어리의 고유 ID
  *         schema:
  *           type: integer
  *     responses:
  *       200:
- *         description: 좋아요 수가 성공적으로 증가됨
+ *         description: 추천수가 성공적으로 증가됨
  *         content:
  *           application/json:
  *             schema:

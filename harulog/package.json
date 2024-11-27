@@ -8,6 +8,7 @@
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
     "express": "^4.21.1",
     "mariadb": "^3.4.0",
     "openai": "^4.73.0"
