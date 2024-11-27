@@ -12,11 +12,12 @@ const openai = new OpenAI({
 const app = express();
 app.use(
   cors({
-    origin: ["http://localhost:3000", "https://localhost:3000", "http://hy-thon.kro.kr:3000", "https://hy-thon.kro.kr:3000"],
+    origin: ["http://localhost:3000", "https://hy-thon.kro.kr"],
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     credentials: true,
   })
 );
+
 app.use(express.json());
 const port = process.env.PORT;
 
