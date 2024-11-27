@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const mariadb = require("mariadb");
 const bcrypt = require("bcryptjs");
 const swaggerUi = require("swagger-ui-express");
@@ -9,6 +10,14 @@ const openai = new OpenAI({
 });
 
 const app = express();
+app.use(
+  cors({
+    origin: ["http://localhost:3000", "https://hy-thon.kro.kr"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 const port = process.env.PORT;
 
@@ -69,8 +78,10 @@ async function defineSchema() {
       CREATE TABLE IF NOT EXISTS diary (
         id INT AUTO_INCREMENT PRIMARY KEY comment 'id',
         image_data TEXT comment 'base64 이미지 데이터',
+        category VARCHAR(50) comment '카테고리',
         content TEXT NOT NULL comment '내용',
         adapted_content TEXT comment '각색된 내용',
+        likes INT DEFAULT 0 comment '추천수',
         username VARCHAR(50) NOT NULL comment '닉네임',
         hashed_password CHAR(64) NOT NULL comment '비밀번호의 SHA-256 해시',
         salt CHAR(32) NOT NULL comment '비밀번호 해싱용 salt',
@@ -114,6 +125,10 @@ app.get("/", (req, res) => {
  *                     type: string
  *                     description: 이미지 데이터 (Base64 인코딩)
  *                     example: "data:image/png;base64,iVBORw0KGgo..."
+ *                   category:
+ *                     type: string
+ *                     description: 카테고리
+ *                     example: "일상"
  *                   content:
  *                     type: string
  *                     description: 다이어리 내용
@@ -122,6 +137,10 @@ app.get("/", (req, res) => {
  *                     type: string
  *                     description: 각색된 다이어리 내용
  *                     example: "오늘은 태양이 반짝이며 하늘을 밝히고, 바람은 마치 내 귓가에 속삭이는 듯 상쾌하게 불어왔다. 일어나자마자 창문을 열고 깊게 숨을 쉬었더니, 온갖 기분 좋은 향기들이 내 마음속에 한가득 쌓였다."
+ *                   likes:
+ *                     type: integer
+ *                     description: 추천수
+ *                     example: 10
  *                   username:
  *                     type: string
  *                     description: 작성자 이름
@@ -136,7 +155,7 @@ app.get("/diaries", async (req, res) => {
   let conn;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT id, image_data, content, adapted_content, username, created_at FROM diary");
+    const rows = await conn.query("SELECT id, image_data, category, content, adapted_content, likes, username, created_at FROM diary");
     console.log(rows);
     res.json(rows);
   } catch (err) {
@@ -164,6 +183,10 @@ app.get("/diaries", async (req, res) => {
  *                 type: string
  *                 description: 이미지 데이터 (Base64 인코딩)
  *                 example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+ *               category:
+ *                 type: string
+ *                 description: 카테고리
+ *                 example: "일상"
  *               content:
  *                 type: string
  *                 description: 다이어리 내용
@@ -205,7 +228,7 @@ app.get("/diaries", async (req, res) => {
  *                   example: "Internal server error"
  */
 app.post("/diaries", async (req, res) => {
-  const { image_data, content, username, password } = req.body;
+  const { image_data, category, content, username, password } = req.body;
   let conn;
   try {
     const saltRounds = 10;
@@ -213,7 +236,14 @@ app.post("/diaries", async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     conn = await pool.getConnection();
-    const result = await conn.query("INSERT INTO diary (image_data, content, username, hashed_password, salt) VALUES (?, ?, ?, ?, ?)", [image_data, content, username, hashedPassword, salt]);
+    const result = await conn.query("INSERT INTO diary (image_data, category, content, username, hashed_password, salt) VALUES (?, ?, ?, ?, ?, ?)", [
+      image_data,
+      category,
+      content,
+      username,
+      hashedPassword,
+      salt,
+    ]);
     console.log(`Diary entry created with ID: ${result.insertId}`);
     res.status(201).json({ message: "Diary entry created", id: Number(result.insertId) });
   } catch (err) {
@@ -371,6 +401,10 @@ app.delete("/diaries/:id", async (req, res) => {
  *                 type: string
  *                 description: 업데이트할 이미지 데이터 (Base64 인코딩)
  *                 example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA..."
+ *               category:
+ *                 type: string
+ *                 description: 카테고리
+ *                 example: "일상"
  *               content:
  *                 type: string
  *                 description: 업데이트할 다이어리 내용
@@ -446,7 +480,7 @@ app.delete("/diaries/:id", async (req, res) => {
  */
 app.put("/diaries/:id", async (req, res) => {
   const { id } = req.params;
-  const { image_data, content, adapted_content, username, password } = req.body;
+  const { image_data, category, content, adapted_content, username, password } = req.body;
   let conn;
 
   try {
@@ -472,6 +506,7 @@ app.put("/diaries/:id", async (req, res) => {
     const result = await conn.query(
       `UPDATE diary SET 
       image_data = COALESCE(?, image_data),
+      category = COALESCE(?, category),
       content = COALESCE(?, content),
       adapted_content = COALESCE(?, adapted_content),
       username = COALESCE(?, username)
@@ -496,12 +531,79 @@ app.put("/diaries/:id", async (req, res) => {
 
 /**
  * @swagger
+ * /diaries/{id}/likes:
+ *   patch:
+ *     summary: 다이어리 추천수 증가
+ *     description: 특정 다이어리의 추천(likes) 필드를 1 증가시킵니다.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: 추천수를 증가시킬 다이어리의 고유 ID
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: 추천수가 성공적으로 증가됨
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Diary likes incremented
+ *       404:
+ *         description: 해당 ID를 가진 다이어리가 존재하지 않음
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Diary entry not found
+ *       500:
+ *         description: 내부 서버 오류
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error
+ */
+app.patch("/diaries/:id/likes", async (req, res) => {
+  const { id } = req.params;
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+
+    const result = await conn.query(`UPDATE diary SET likes = likes + 1 WHERE id = ?`, [id]);
+
+    if (result.affectedRows === 0) {
+      console.error("Diary entry not found");
+      res.status(404).json({ message: "Diary entry not found" });
+    } else {
+      console.log(`Diary ID ${id}'s likes successfully incremented.`);
+      res.status(200).json({ message: "Diary likes incremented" });
+    }
+  } catch (err) {
+    console.error("Error updating diary entry:", err);
+    res.status(500).json({ error: "Internal server error" });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+/**
+ * @swagger
  * /diaries/adaptation:
  *   post:
  *     summary: AI를 사용하여 일기 내용을 각색
  *     description: 사용자의 비밀번호를 검증한 뒤, 해당 일기의 adapted_content가 null인 경우 AI를 사용하여 각색된 내용을 생성하고 저장합니다. 이미 각색된 내용이 존재하면 아무 작업도 수행하지 않습니다.
- *     tags:
- *       - Diaries
  *     requestBody:
  *       required: true
  *       content:
