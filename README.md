@@ -23,20 +23,25 @@
 ## Git Branch Rules
 
 ### Branch Types
-- **master branch**, **develop branch**  
-  - master와 develop 브랜치는 본래 이름 그대로 사용.
+
+## Organization repository
+- **main branch**
+  - main 브랜치는 본래 이름 그대로 사용.
+  - 항상 서비스 가능한 상태 유지
+
+- **hotfix branch**  
+  - hotfix 브랜치는 main 브랜치에 이상이 있을 때 사용.
+  - 수정사항을 빠르게 반영하고, main브랜치에 병합.
+  - 형식: `hotfix-...`
+    - 예: `hotfix/핫픽스내용요약`
+
+## Forked repository
+- **main branch**
+  - 조직 리포지토리의 최신상태를 따라가야함.
 
 - **feature branch**  
   - `master`, `develop`, `release-...`, `hotfix-...` 제외 전부 가능.  
-  - 형식: `feature/기능요약`  
+  - 형식: `feature/기능요약`
     - 예: `feature/login`
-
-- **release branch**  
-  - 형식: `release-...`  
-    - 예: `release-1.0`
-
-- **hotfix branch**  
-  - 형식: `hotfix-...`  
-    - 예: `hotfix-1.2.1`
 
 from [YeonDeok](https://github.com/YeonDeok)
