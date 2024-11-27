@@ -81,6 +81,8 @@ async function defineSchema() {
         category VARCHAR(50) comment '카테고리',
         content TEXT NOT NULL comment '내용',
         adapted_content TEXT comment '각색된 내용',
+        recommand_content TEXT comment '내일의 추천 내용',
+        recommand_category INT comment '내일의 추천 카테고리',
         likes INT DEFAULT 0 comment '추천수',
         username VARCHAR(50) NOT NULL comment '닉네임',
         hashed_password CHAR(64) NOT NULL comment '비밀번호의 SHA-256 해시',
@@ -155,7 +157,7 @@ app.get("/diaries", async (req, res) => {
   let conn;
   try {
     conn = await pool.getConnection();
-    const rows = await conn.query("SELECT id, image_data, category, content, adapted_content, likes, username, created_at FROM diary");
+    const rows = await conn.query("SELECT id, image_data, category, content, adapted_content, recommand_content, recommand_category, likes, username, created_at FROM diary");
     console.log(rows);
     res.json(rows);
   } catch (err) {
@@ -729,6 +731,150 @@ app.post("/diaries/adaptation", async (req, res) => {
     }
     console.log(`Diary ID: ${id} successfully updated with adapted content.`);
     res.status(200).json({ message: "Adapted content created and saved successfully.", adapted_content: adaptedText });
+  } catch (error) {
+    console.error("Error occurred:", error);
+    res.status(500).json({ error: "An error occurred while processing your request." });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+/**
+ * @swagger
+ * /diaries/recommand:
+ *   post:
+ *     summary: AI를 사용하여 4개의 카테고리중 하나를 선전하여 내일의 할 일로 추천 
+ *     description: 사용자의 비밀번호를 검증한 뒤, 해당 일기의 recommand_content가 null인 경우 AI를 사용하여 내읠일 할일을 생성하고 저장합니다. 이미 내일의 할일 내용이 존재하면 아무 작업도 수행하지 않습니다.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - password
+ *             properties:
+ *               id:
+ *                 type: integer
+ *                 description: 추천받으려는 일기의 고유 ID
+ *                 example: 1
+ *               password:
+ *                 type: string
+ *                 description: 사용자의 비밀번호
+ *                 example: "mypassword123"
+ *     responses:
+ *       200:
+ *         description: 요청이 성공적으로 처리되었으며, 내일의 할일 추천 내용이 생성되었거나 이미 존재함.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: 작업 결과 메시지
+ *                 recommand_content:
+ *                   type: string
+ *                   description: 새로 생성된 내일의 할일 추천 내용 (이미 존재하는 경우 포함되지 않음)
+ *       400:
+ *         description: 요청 본문이 잘못되었거나 필수 필드가 누락됨.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 오류 메시지
+ *       401:
+ *         description: 비밀번호 검증 실패.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 오류 메시지
+ *       404:
+ *         description: 해당 ID의 일기를 찾을 수 없음.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 오류 메시지
+ *       500:
+ *         description: 내부 서버 오류.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: 오류 메시지
+ */
+app.post("/diaries/recommand", async (req, res) => {
+  const { id, password } = req.body;
+
+  if (!id || !password) {
+    return res.status(400).json({ error: "ID and password are required." });
+  }
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+
+    // 1. Diary 항목 조회 및 검증
+    const rows = await conn.query("SELECT hashed_password, content, recommand_category, recommand_content FROM diary WHERE id = ?", [id]);
+
+    if (!rows || rows.length === 0) {
+      console.error("Diary entry not found.");
+      return res.status(404).json({ error: "Diary entry not found." });
+    }
+
+    const { hashed_password, content, recommand_category, recommand_content } = rows[0];
+
+    // 2. 비밀번호 검증
+    const passwordMatch = await bcrypt.compare(password, hashed_password);
+    if (!passwordMatch) {
+      console.error("Invalid password.");
+      return res.status(401).json({ error: "Invalid password." });
+    }
+
+    // 3. recommand_content가 null이 아니면 무시
+    if (recommand_content !== null) {
+      console.log("Recommand content already exists. No action taken.");
+      return res.status(200).json({ message: "Recommand content already exists. No action taken." });
+    }
+
+	recommandCategory = Math.floor(Math.random() * 4); // 0 이상 1 미만의 난수
+	const category_text = ["음식", "영화", "노래", "영상"];
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+		{ role: "system", content: "사용자는 하루의 마무리로 일기를 작성하셨어, 너는 내일의 사용자분께 추천해주는 역할이야" },
+		{ role: "system", content: `${category_text[recommand_category]}중에서 추천해줘` },
+		{ role: "system", content: "추천하는 것과 '내일은 {추천하는것}이 어떨까요?' 같이 추천해드리는 문구로 작성해줘" },
+		{ role: "system", content: "한줄로 작성해줘." },
+      ],
+    });
+    const recommandText = completion.choices[0].message.content;
+
+    // 5. recommand_content, recommand_category 컬럼에 저장
+    const result = await conn.query("UPDATE diary SET recommand_content = ?, recommand_category = ? WHERE id = ?", [recommandText, recommandCategory, id]);
+
+    if (result.affectedRows === 0) {
+      console.error("Failed to update recommand content.");
+      return res.status(500).json({ error: "Failed to update recommand content." });
+    }
+    console.log(`Diary ID: ${id} successfully updated with recommand content.`);
+    res.status(200).json({ message: "Recommand content created and saved successfully.", recommand_content: recommandText, recommand_category: recommandCategory });
   } catch (error) {
     console.error("Error occurred:", error);
     res.status(500).json({ error: "An error occurred while processing your request." });
