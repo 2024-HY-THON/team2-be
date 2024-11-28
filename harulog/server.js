@@ -1159,7 +1159,7 @@ app.post("/diaries/recommendation", async (req, res) => {
     }
 
     rows = await conn.query(`
-      SELECT id, name FROM category;
+      SELECT id, name FROM recommended_category;
     `);
 
     const randomIndex = Math.floor(Math.random() * rows.length);
