@@ -8,8 +8,8 @@ services:
       retries: 60
       start_period: 2s
     image: mariadb:latest
-    expose:
-      - "3306"
+    ports:
+      - 3306:3306
     volumes:
       - ./db/conf.d:/etc/mysql/conf.d
       - ./db/data:/var/lib/mysql
