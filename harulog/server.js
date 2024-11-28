@@ -349,7 +349,7 @@ app.get("/diaries", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query(
-      `SELECT d.id, image_data, c.name AS category, content, adapted_content, recommended_content, recommended_category_id, likes, views, username, created_at 
+      `SELECT d.id, image_data, category_id, c.name AS category, content, adapted_content, recommended_content, recommended_category_id, likes, views, username, created_at 
       FROM diary AS d INNER JOIN category AS c ON d.category_id = c.id
       ORDER BY ${orderBy} DESC 
       LIMIT ?`,
