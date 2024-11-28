@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const swaggerUi = require("swagger-ui-express");
 const swaggerJsdoc = require("swagger-jsdoc");
 const OpenAI = require("openai");
+const dummyData = require("./dummyData.js").default;
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -103,9 +104,11 @@ async function defineSchema() {
         ('식사'),
         ('영상(드라마, 영화)')
         ON DUPLICATE KEY UPDATE name = name;`);
-                
-    await conn.query(`
-      CREATE TABLE IF NOT EXISTS diary (
+
+    const tables = await conn.query("SHOW TABLES LIKE 'diary'");
+    if (tables.length === 0) {
+      await conn.query(`
+      CREATE TABLE diary (
         id INT AUTO_INCREMENT PRIMARY KEY comment 'id',
         image_data TEXT comment 'base64 이미지 데이터',
         category_id INT comment '카테고리 ID',
@@ -120,11 +123,47 @@ async function defineSchema() {
         salt CHAR(32) NOT NULL comment '비밀번호 해싱용 salt',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP comment '생성일시',
         CONSTRAINT fk_category FOREIGN KEY (category_id) REFERENCES category(id),
-        CONSTRAINT fk_recommended_category FOREIGN KEY (recommended_category_id) REFERENCES category(id)
+        CONSTRAINT fk_recommended_category FOREIGN KEY (recommended_category_id) REFERENCES recommended_category(id)
       )
     `);
+      console.log("Database schema defined successfully!");
 
-    console.log("Database schema defined successfully!");
+      const values = dummyData.flatMap((data) => [
+        data.image_data,
+        data.category_id,
+        data.content,
+        data.adapted_content,
+        data.recommended_content,
+        data.recommended_category_id,
+        data.likes,
+        data.views,
+        data.username,
+        data.hashed_password,
+        data.salt,
+        data.created_at,
+      ]);
+
+      const valuesPlaceholders = dummyData.map(() => "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").join(", ");
+      const query = `
+  INSERT INTO diary (
+    image_data,
+    category_id,
+    content,
+    adapted_content,
+    recommended_content,
+    recommended_category_id,
+    likes,
+    views,
+    username,
+    hashed_password,
+    salt,
+    created_at
+  ) VALUES ${valuesPlaceholders}
+`;
+      const result = await conn.query(query, values);
+
+      console.log("Dummy data inserted:", result);
+    }
   } catch (err) {
     console.error("Error defining schema:", err);
   } finally {
@@ -239,7 +278,7 @@ app.get("/categories", async (req, res) => {
  *                   image_data:
  *                     type: string
  *                     description: 다이어리의 이미지 데이터 (Base64)
- *                     example: "base64_encoded_image_data"
+ *                     example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
  *                   category_id:
  *                     type: integer
  *                     description: 카테고리 ID
@@ -356,7 +395,7 @@ app.get("/diaries", async (req, res) => {
  *                   description: 다이어리 ID
  *                 image_data:
  *                   type: string
- *                   example: "base64_encoded_image_data"
+ *                   example: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
  *                   description: 다이어리의 이미지 데이터
  *                 category_id:
  *                   type: integer
@@ -431,7 +470,7 @@ app.get("/diaries/:id", async (req, res) => {
       `SELECT d.id, image_data, c.id AS category_id, c.name AS category, content, adapted_content, recommended_content, rc.id AS recommended_category_id, rc.name AS recommended_category, likes, views, username, created_at 
       FROM diary AS d
       INNER JOIN category AS c ON d.category_id = c.id
-      LEFT JOIN category AS rc ON d.recommended_category_id = rc.id
+      LEFT JOIN recommended_category AS rc ON d.recommended_category_id = rc.id
       WHERE d.id = ?`,
       [id]
     );
@@ -1131,9 +1170,9 @@ app.post("/diaries/recommendation", async (req, res) => {
 
     // 1. Diary 항목 조회 및 검증
     let rows = await conn.query(
-      `SELECT hashed_password, recommended_category_id, c.name AS recommended_category_name, recommended_content 
+      `SELECT hashed_password, recommended_category_id, rc.name AS recommended_category_name, recommended_content 
       FROM diary AS d
-      LEFT JOIN category AS c ON d.recommended_category_id = c.id
+      LEFT JOIN recommended_category AS rc ON d.recommended_category_id = rc.id
       WHERE d.id = ?`,
       [id]
     );
