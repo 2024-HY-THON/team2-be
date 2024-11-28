@@ -81,29 +81,29 @@ async function defineSchema() {
     );`);
     await conn.query(`
       INSERT INTO category (name)
-		VALUES 
+        VALUES 
         ('소통'),
         ('감사'),
         ('휴식'),
         ('성취'),
         ('도전'),
         ('감정')
-		ON DUPLICATE KEY UPDATE name = name;`);
-		
-	await conn.query(`
-		CREATE TABLE IF NOT EXISTS recommended_category (
-			id INT AUTO_INCREMENT PRIMARY KEY comment '추천 카테고리 ID',
-			name VARCHAR(50) NOT NULL UNIQUE comment '추천 카테고리 이름'
-			);`);
-	await conn.query(`
-		INSERT INTO recommended_category (name)
-      VALUES 
+        ON DUPLICATE KEY UPDATE name = name;`);
+
+    await conn.query(`
+      CREATE TABLE IF NOT EXISTS recommended_category (
+      id INT AUTO_INCREMENT PRIMARY KEY comment '추천 카테고리 ID',
+      name VARCHAR(50) NOT NULL UNIQUE comment '추천 카테고리 이름'
+    );`);
+    await conn.query(`
+      INSERT INTO recommended_category (name)
+        VALUES 
         ('음료'),
         ('노래'),
         ('식사'),
-		('영상(드라마, 영화)')
-      ON DUPLICATE KEY UPDATE name = name;`);
-
+        ('영상(드라마, 영화)')
+        ON DUPLICATE KEY UPDATE name = name;`);
+                
     await conn.query(`
       CREATE TABLE IF NOT EXISTS diary (
         id INT AUTO_INCREMENT PRIMARY KEY comment 'id',
