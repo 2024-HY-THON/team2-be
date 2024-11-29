@@ -1117,8 +1117,8 @@ app.post("/diaries/adaptation", async (req, res) => {
  *                   type: string
  *                   description: 새로 생성된 내일의 할일 추천 내용 (이미 존재하는 경우 포함되지 않음)
  *                 recommended_category_id:
- *                   type: int
- *                   description: 내일의 할일 카테고리 (1 '음료', 2'노래', 3 '식사' 4 '영상(드라마, 영화)'
+ *                   type: integer
+ *                   description: 내일의 할일 카테고리 ID
  *       400:
  *         description: 요청 본문이 잘못되었거나 필수 필드가 누락됨.
  *         content:
