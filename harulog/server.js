@@ -1040,7 +1040,7 @@ app.post("/diaries/adaptation", async (req, res) => {
     // 3. adapted_content가 null이 아니면 무시
     if (adapted_content !== null) {
       console.log("Adapted content already exists. No action taken.");
-      return res.status(200).json({ message: "Adapted content already exists. No action taken." });
+      return res.status(200).json({ message: "Adapted content already exists. No action taken.", adapted_content });
     }
 
     const completion = await openai.chat.completions.create({
