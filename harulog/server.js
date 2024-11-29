@@ -1194,7 +1194,7 @@ app.post("/diaries/recommendation", async (req, res) => {
       return res.status(401).json({ error: "Invalid password." });
     }
 
-	const { recommended_content, recommended_category_id } = row[0];
+	const { recommended_content, recommended_category_id } = rows[0];
 
     // 3. recommended_content가 null이 아니면 무시
     if (recommended_content !== null) {
