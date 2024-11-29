@@ -933,7 +933,7 @@ app.patch("/diaries/:id/likes", async (req, res) => {
  * /diaries/adaptation:
  *   post:
  *     summary: AI를 사용하여 일기 내용을 각색
- *     description: 사용자의 비밀번호를 검증한 뒤, 해당 일기의 adapted_content가 null인 경우 AI를 사용하여 각색된 내용을 생성하고 저장합니다. 이미 각색된 내용이 존재하면 아무 작업도 수행하지 않습니다.
+ *     description: 해당 일기의 adapted_content가 null인 경우 AI를 사용하여 각색된 내용을 생성하고 저장합니다. 이미 각색된 내용이 존재하면 그대로 반환합니다.
  *     tags:
  *       - Diaries
  *     requestBody:
@@ -944,16 +944,11 @@ app.patch("/diaries/:id/likes", async (req, res) => {
  *             type: object
  *             required:
  *               - id
- *               - password
  *             properties:
  *               id:
  *                 type: integer
  *                 description: 각색하려는 일기의 고유 ID
  *                 example: 1
- *               password:
- *                 type: string
- *                 description: 사용자의 비밀번호
- *                 example: "mypassword123"
  *     responses:
  *       200:
  *         description: 요청이 성공적으로 처리되었으며, 각색된 내용이 생성되었거나 이미 존재함.
@@ -967,19 +962,9 @@ app.patch("/diaries/:id/likes", async (req, res) => {
  *                   description: 작업 결과 메시지
  *                 adapted_content:
  *                   type: string
- *                   description: 새로 생성된 각색된 내용 (이미 존재하는 경우 포함되지 않음)
+ *                   description: 새로 생성된 각색된 내용(이미 존재하는 경우 그대로 반환)
  *       400:
  *         description: 요청 본문이 잘못되었거나 필수 필드가 누락됨.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   description: 오류 메시지
- *       401:
- *         description: 비밀번호 검증 실패.
  *         content:
  *           application/json:
  *             schema:
@@ -1010,10 +995,10 @@ app.patch("/diaries/:id/likes", async (req, res) => {
  *                   description: 오류 메시지
  */
 app.post("/diaries/adaptation", async (req, res) => {
-  const { id, password } = req.body;
+  const { id } = req.body;
 
-  if (!id || !password) {
-    return res.status(400).json({ error: "ID and password are required." });
+  if (!id) {
+    return res.status(400).json({ error: "ID is required." });
   }
   let conn;
 
@@ -1021,23 +1006,16 @@ app.post("/diaries/adaptation", async (req, res) => {
     conn = await pool.getConnection();
 
     // 1. Diary 항목 조회 및 검증
-    const rows = await conn.query("SELECT hashed_password, content, adapted_content FROM diary WHERE id = ?", [id]);
+    const rows = await conn.query("SELECT content, adapted_content FROM diary WHERE id = ?", [id]);
 
     if (!rows || rows.length === 0) {
       console.error("Diary entry not found.");
       return res.status(404).json({ error: "Diary entry not found." });
     }
 
-    const { hashed_password, content, adapted_content } = rows[0];
+    const { content, adapted_content } = rows[0];
 
-    // 2. 비밀번호 검증
-    const passwordMatch = await bcrypt.compare(password, hashed_password);
-    if (!passwordMatch) {
-      console.error("Invalid password.");
-      return res.status(401).json({ error: "Invalid password." });
-    }
-
-    // 3. adapted_content가 null이 아니면 무시
+    // 2. adapted_content가 null이 아니면 무시
     if (adapted_content !== null) {
       console.log("Adapted content already exists. No action taken.");
       return res.status(200).json({ message: "Adapted content already exists. No action taken.", adapted_content });
@@ -1059,7 +1037,7 @@ app.post("/diaries/adaptation", async (req, res) => {
     });
     const adaptedText = completion.choices[0].message.content;
 
-    // 5. adapted_content 컬럼에 저장
+    // 3. adapted_content 컬럼에 저장
     const result = await conn.query("UPDATE diary SET adapted_content = ? WHERE id = ?", [adaptedText, id]);
 
     if (result.affectedRows === 0) {
@@ -1081,7 +1059,7 @@ app.post("/diaries/adaptation", async (req, res) => {
  * /diaries/recommendation:
  *   post:
  *     summary: AI를 사용하여 4개의 카테고리 중 하나를 선정하여 내일의 할 일로 추천
- *     description: 사용자의 비밀번호를 검증한 뒤, 해당 일기의 recommended_content, recommended_category가 null인 경우 AI를 사용하여 내일의 할일을 생성하고 저장합니다. 이미 내일의 할일 내용이 존재하면 아무 작업도 수행하지 않습니다.
+ *     description: 해당 일기의 recommended_content, recommended_category가 null인 경우 AI를 사용하여 내일의 할일을 생성하고 저장합니다. 이미 내일의 할일 내용이 존재하면 그 내용을 반환합니다.
  *     tags:
  *       - Diaries
  *     requestBody:
@@ -1092,16 +1070,11 @@ app.post("/diaries/adaptation", async (req, res) => {
  *             type: object
  *             required:
  *               - id
- *               - password
  *             properties:
  *               id:
  *                 type: integer
  *                 description: 추천받을 일기의 고유 ID
  *                 example: 1
- *               password:
- *                 type: string
- *                 description: 사용자의 비밀번호
- *                 example: "mypassword123"
  *     responses:
  *       200:
  *         description: 요청이 성공적으로 처리되었으며, 내일의 할일 추천 내용이 생성되었거나 이미 존재함.
@@ -1115,22 +1088,12 @@ app.post("/diaries/adaptation", async (req, res) => {
  *                   description: 작업 결과 메시지
  *                 recommended_content:
  *                   type: string
- *                   description: 새로 생성된 내일의 할일 추천 내용 (이미 존재하는 경우 포함되지 않음)
+ *                   description: 새로 생성된 내일의 할일 추천 내용 (이미 존재하는 경우 그대로 반환)
  *                 recommended_category_id:
  *                   type: integer
  *                   description: 내일의 할일 카테고리 ID
  *       400:
  *         description: 요청 본문이 잘못되었거나 필수 필드가 누락됨.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 error:
- *                   type: string
- *                   description: 오류 메시지
- *       401:
- *         description: 비밀번호 검증 실패.
  *         content:
  *           application/json:
  *             schema:
@@ -1161,10 +1124,10 @@ app.post("/diaries/adaptation", async (req, res) => {
  *                   description: 오류 메시지
  */
 app.post("/diaries/recommendation", async (req, res) => {
-  const { id, password } = req.body;
+  const { id } = req.body;
 
-  if (!id || !password) {
-    return res.status(400).json({ error: "ID and password are required." });
+  if (!id) {
+    return res.status(400).json({ error: "ID is required." });
   }
   let conn;
 
@@ -1173,7 +1136,7 @@ app.post("/diaries/recommendation", async (req, res) => {
 
     // 1. Diary 항목 조회 및 검증
     let rows = await conn.query(
-      `SELECT hashed_password, recommended_category_id, rc.name AS recommended_category_name, recommended_content 
+      `SELECT recommended_category_id, rc.name AS recommended_category_name, recommended_content 
       FROM diary AS d
       LEFT JOIN recommended_category AS rc ON d.recommended_category_id = rc.id
       WHERE d.id = ?`,
@@ -1185,18 +1148,9 @@ app.post("/diaries/recommendation", async (req, res) => {
       return res.status(404).json({ error: "Diary entry not found." });
     }
 
-    const { hashed_password } = rows[0];
+    const { recommended_content, recommended_category_id } = rows[0];
 
-    // 2. 비밀번호 검증
-    const passwordMatch = await bcrypt.compare(password, hashed_password);
-    if (!passwordMatch) {
-      console.error("Invalid password.");
-      return res.status(401).json({ error: "Invalid password." });
-    }
-
-	const { recommended_content, recommended_category_id } = row[0];
-
-    // 3. recommended_content가 null이 아니면 무시
+    // 2. recommended_content가 null이 아니면 무시
     if (recommended_content !== null) {
       console.log("Recommended content already exists. No action taken.");
       return res.status(200).json({ message: "Recommended content already exists. No action taken.", recommended_content, recommended_category_id });
@@ -1220,7 +1174,7 @@ app.post("/diaries/recommendation", async (req, res) => {
     });
     const recommendedContent = completion.choices[0].message.content;
 
-    // 5. recommended_content, recommended_category 컬럼에 저장
+    // 3. recommended_content, recommended_category 컬럼에 저장
     const result = await conn.query("UPDATE diary SET recommended_content = ?, recommended_category_id = ? WHERE id = ?", [recommendedContent, randomId, id]);
 
     if (result.affectedRows === 0) {
