@@ -349,7 +349,7 @@ app.get("/diaries", async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query(
-      `SELECT d.id, image_data, c.name AS category, content, adapted_content, recommended_content, recommended_category_id, likes, views, username, created_at 
+      `SELECT d.id, image_data, category_id, c.name AS category, content, adapted_content, recommended_content, recommended_category_id, likes, views, username, created_at 
       FROM diary AS d INNER JOIN category AS c ON d.category_id = c.id
       ORDER BY ${orderBy} DESC 
       LIMIT ?`,
@@ -1040,7 +1040,7 @@ app.post("/diaries/adaptation", async (req, res) => {
     // 3. adapted_content가 null이 아니면 무시
     if (adapted_content !== null) {
       console.log("Adapted content already exists. No action taken.");
-      return res.status(200).json({ message: "Adapted content already exists. No action taken." });
+      return res.status(200).json({ message: "Adapted content already exists. No action taken.", adapted_content });
     }
 
     const completion = await openai.chat.completions.create({
