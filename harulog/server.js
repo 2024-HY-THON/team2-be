@@ -282,6 +282,10 @@ app.get("/categories", async (req, res) => {
  *                     type: integer
  *                     description: 카테고리 ID
  *                     example: 1
+ *                   category:
+ *                     type: string
+ *                     description: 카테고리
+ *                     example: "소통"
  *                   content:
  *                     type: string
  *                     description: 다이어리 내용
