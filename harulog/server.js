@@ -162,7 +162,6 @@ async function defineSchema() {
 `;
       const result = await conn.query(query, values);
 
-      console.log("Dummy data inserted:", result);
     }
   } catch (err) {
     console.error("Error defining schema:", err);
@@ -283,6 +282,10 @@ app.get("/categories", async (req, res) => {
  *                     type: integer
  *                     description: 카테고리 ID
  *                     example: 1
+ *                   category:
+ *                     type: string
+ *                     description: 카테고리
+ *                     example: "소통"
  *                   content:
  *                     type: string
  *                     description: 다이어리 내용
@@ -341,7 +344,6 @@ app.get("/diaries", async (req, res) => {
   const { orderBy = "created_at", limit = 10 } = req.query; // 파라미터에서 orderBy와 limit 가져오기
   const validOrderBy = ["views", "likes", "created_at"]; // 허용된 정렬 기준
   const validLimit = Math.min(Number(limit) || 10, 100); // 최대 100개 제한
-  console.log(orderBy, validLimit);
   if (!validOrderBy.includes(orderBy)) {
     return res.status(400).json({ error: "Invalid orderBy parameter. Use 'views', 'likes', or 'created_at'." });
   }
@@ -355,7 +357,6 @@ app.get("/diaries", async (req, res) => {
       LIMIT ?`,
       [validLimit]
     );
-    console.log(rows);
     res.json(rows);
   } catch (err) {
     console.error("Error fetching diaries:", err);
@@ -478,7 +479,6 @@ app.get("/diaries/:id", async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Diary not found" });
     }
-    console.log(rows[0]);
     res.json(rows[0]); // 첫 번째 행 반환
   } catch (err) {
     console.error("Error fetching diary:", err);
@@ -1162,6 +1162,8 @@ app.post("/diaries/recommendation", async (req, res) => {
 
     const randomIndex = Math.floor(Math.random() * rows.length);
     const randomId = rows[randomIndex].id;
+
+    console.log(`프롬프트 확인 로그: ${rows[randomIndex].name} 중에서 추천해줘`);
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
