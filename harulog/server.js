@@ -162,7 +162,6 @@ async function defineSchema() {
 `;
       const result = await conn.query(query, values);
 
-      console.log("Dummy data inserted:", result);
     }
   } catch (err) {
     console.error("Error defining schema:", err);
@@ -341,7 +340,6 @@ app.get("/diaries", async (req, res) => {
   const { orderBy = "created_at", limit = 10 } = req.query; // 파라미터에서 orderBy와 limit 가져오기
   const validOrderBy = ["views", "likes", "created_at"]; // 허용된 정렬 기준
   const validLimit = Math.min(Number(limit) || 10, 100); // 최대 100개 제한
-  console.log(orderBy, validLimit);
   if (!validOrderBy.includes(orderBy)) {
     return res.status(400).json({ error: "Invalid orderBy parameter. Use 'views', 'likes', or 'created_at'." });
   }
@@ -355,7 +353,6 @@ app.get("/diaries", async (req, res) => {
       LIMIT ?`,
       [validLimit]
     );
-    console.log(rows);
     res.json(rows);
   } catch (err) {
     console.error("Error fetching diaries:", err);
@@ -478,7 +475,6 @@ app.get("/diaries/:id", async (req, res) => {
     if (rows.length === 0) {
       return res.status(404).json({ error: "Diary not found" });
     }
-    console.log(rows[0]);
     res.json(rows[0]); // 첫 번째 행 반환
   } catch (err) {
     console.error("Error fetching diary:", err);
