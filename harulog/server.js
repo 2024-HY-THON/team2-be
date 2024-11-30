@@ -1163,6 +1163,8 @@ app.post("/diaries/recommendation", async (req, res) => {
     const randomIndex = Math.floor(Math.random() * rows.length);
     const randomId = rows[randomIndex].id;
 
+    console.log(`프롬프트 확인 로그: ${rows[randomIndex].name} 중에서 추천해줘`);
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
