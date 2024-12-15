@@ -8,8 +8,8 @@ services:
       retries: 60
       start_period: 2s
     image: mariadb:latest
-    ports:
-      - 3306:3306
+    expose:
+      - "3306"
     volumes:
       - ./db/conf.d:/etc/mysql/conf.d
       - ./db/data:/var/lib/mysql
@@ -35,8 +35,6 @@ services:
     container_name: node_app
     working_dir: /usr/src/app
     ports:
-      #- 80:80
-      #- 443:443
       - 3005:3005
     command: "npm start"
     environment:
