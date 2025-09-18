@@ -23,9 +23,9 @@
 
 # Harulog Architecture
 
-![image](https://github.com/user-attachments/assets/ffdbcbbc-fe82-4bc5-9a3c-f1645f161887)
+![image](./harulog/public/img/architecture.png)
 
-위 구성도는 2024 HY-THON D-Day에 배포했던 하루로그 구성도이며,
+위 구성도는 2024 HY-THON D-Day에 Oracle Cloud Infrastructure에 배포했던 하루로그 구성도이며,
 현재 리포지토리는 이 중 프론트엔드, 백엔드(OpenAI API 관련 로직 포함)만을 포함합니다.
 
 # Usage
@@ -43,14 +43,14 @@ docker compose up -d
 
 # Preview
 
-![image](https://github.com/user-attachments/assets/a9176166-5ee1-4adf-b423-a1166b47c687)
+![image](./harulog/public/img/1.png)
 
-![image](https://github.com/user-attachments/assets/16c59a21-9a9f-427a-9219-2efd40cdaae4)
+![image](./harulog/public/img/2.png)
 
-![image](https://github.com/user-attachments/assets/ec17c937-677a-4085-bfcb-0690f191c8ed)
+![image](./harulog/public/img/3.png)
 
-![image](https://github.com/user-attachments/assets/fb2edec7-c247-41f4-8e2c-0735af6c8409)
+![image](./harulog/public/img/4.png)
 
-![image](https://github.com/user-attachments/assets/34652f9c-a6cc-42a4-affc-b134f52e3eb6)
+![image](./harulog/public/img/5.png)
 
-![image](https://github.com/user-attachments/assets/eb8a0fa7-68e0-4ccb-99f5-0b50e6f09273)
+![image](./harulog/public/img/6.png)
